@@ -1,0 +1,78 @@
+#!/bin/bash
+usage() { echo "Usage: $0 [-c <greater than 90>] [-w <between 60 to 90>] [-e <string, email address>]" 1>&2; exit 1; }
+
+while getopts ":w:c:e:" opt; do
+    case "${opt}" in
+    w) #Values should be between 60 and 90
+	   WARN=${OPTARG}
+	   if ([ $WARN -ge 60 ] && [ $WARN -lt 90 ])
+	   then  
+	   echo "WARNING Threshold provided is $WARN."
+	   else
+       echo "Critical Threshold needs to be greater than or equal to 60 but less than or equal to 90, $WARN found instead."
+	   fi
+	   ;;
+    c) # Value of Critical Threshold should always be greater than the Warning Threshold
+	   if [ ${OPTARG} -gt 90 ] 
+	   then
+	   echo "CRITICAL Threshold is ${OPTARG}"
+	   else
+	   usage
+	   fi
+           ;;
+    e) DATE=`date '+%Y%m%d %H:%M'`
+	MAIL_MESSAGE="/message.txt"
+	TOP_PROCESS=`top | head -10  | sort -n -k 5` >> $MAIL_MESSAGE
+	#USAGE=`free | grep Mem | awk '{print $3/$2 * 100}'`
+	#MEMORY_USAGE=`printf "%2.f\n" $USAGE`
+	MEMORY_USAGE="95"
+	if [ $MEMORY_USAGE -gt 90 ] 
+	then 
+	cat $MAIL_MESSAGE | mailx -s "$DATE memory check - critical" ${OPTARG}
+	fi
+	;;
+    \?) echo "Invalid option: -$OPTARG" >&2
+	exit 1
+	;;
+     :) echo "Option -$OPTARG requires an argument." >&2
+	exit 1
+	;;
+    esac
+done
+shift $((OPTIND-1))
+
+
+# Bash Script Part 2 : exit commands
+
+USAGE=`free | grep Mem | awk '{print $3/$2 * 100}'`
+MEMORY_USAGE=`printf "%2.f\n" $USAGE`
+
+    if [ $MEMORY_USAGE -ge 60   -a   $MEMORY_USAGE -le 90 ]
+	then
+	status=WARNING
+	elif [ $MEMORY_USAGE -gt 90 ]
+	then
+	status=CRITICAL
+	else 
+	echo "Memory Usage in Percentage is $MEMORY_USAGE"
+	fi
+
+RESULT ()
+{
+	case "${status}" in
+	'WARNING')
+		echo "WARNING - $MEMORY_USAGE Memory has been used."
+		exit 1
+		;;
+	'CRITICAL')
+		echo "CRITICAL - $MEMORY_USAGE Memory has been used."
+		exit 2
+		;;
+	*)
+		echo "OK - $MEMORY_USAGE Memory has been used."
+		exit 0
+		;;
+	esac
+}
+
+RESULT
